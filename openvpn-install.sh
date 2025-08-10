@@ -1341,6 +1341,32 @@ function removeOpenVPN() {
 	fi
 }
 
+function renewServerCert() {
+	echo "Renew OpenVPN Server Certificate"
+ 	REQ_FILE=$(find /etc/openvpn/easy-rsa/pki/reqs/ -name "server_*.req" | head -n 1)
+	KEY_FILE=$(find /etc/openvpn/easy-rsa/pki/private/ -name "server_*.key" | head -n 1)
+	CRT_FILE=$(find /etc/openvpn/easy-rsa/pki/issued/ -name "server_*.crt" | head -n 1)
+	OVPN_CRT_FILE=$(find /etc/openvpn/ -name "server_*.crt" | head -n 1)
+	OVPN_KEY_FILE=$(find /etc/openvpn/ -name "server_*.key" | head -n 1)
+
+	[ -f "$REQ_FILE" ] && mv "$REQ_FILE" "$REQ_FILE.backup"
+	[ -f "$KEY_FILE" ] && mv "$KEY_FILE" "$KEY_FILE.backup"
+	[ -f "$CRT_FILE" ] && mv "$CRT_FILE" "$CRT_FILE.backup"
+	[ -f "$OVPN_CRT_FILE" ] && mv "$OVPN_CRT_FILE" "$OVPN_CRT_FILE.backup"
+	[ -f "$OVPN_KEY_FILE" ] && mv "$OVPN_KEY_FILE" "$OVPN_KEY_FILE.backup"
+
+	SERVER_NAME=$(basename "$REQ_FILE" .req)
+
+	cd /etc/openvpn/easy-rsa || exit
+		./easyrsa build-server-full "$SERVER_NAME" nopass
+
+	cp "/etc/openvpn/easy-rsa/pki/issued/$SERVER_NAME.crt" /etc/openvpn
+	cp "/etc/openvpn/easy-rsa/pki/private/$SERVER_NAME.key" /etc/openvpn
+
+	echo "Certificate and key have been successfully regenerated for $SERVER_NAME."
+ 
+}
+
 function manageMenu() {
 	echo "Welcome to OpenVPN-install!"
 	echo "The git repository is available at: https://github.com/angristan/openvpn-install"
@@ -1351,9 +1377,10 @@ function manageMenu() {
 	echo "   1) Add a new user"
 	echo "   2) Revoke existing user"
 	echo "   3) Remove OpenVPN"
-	echo "   4) Exit"
-	until [[ $MENU_OPTION =~ ^[1-4]$ ]]; do
-		read -rp "Select an option [1-4]: " MENU_OPTION
+ 	echo "   4) Renew Server Certificate"
+	echo "   5) Exit"
+	until [[ $MENU_OPTION =~ ^[1-5]$ ]]; do
+		read -rp "Select an option [1-5]: " MENU_OPTION
 	done
 
 	case $MENU_OPTION in
@@ -1367,6 +1394,9 @@ function manageMenu() {
 		removeOpenVPN
 		;;
 	4)
+ 		renewServerCert
+   		;;
+ 	5)
 		exit 0
 		;;
 	esac
